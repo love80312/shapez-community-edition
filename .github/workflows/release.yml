@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - 000
+      - "000"
 
 jobs:
   build-windows:
@@ -12,11 +12,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 確保 .git 存在，因為 Dockerfile 有 COPY .git
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '16' # 配合 Dockerfile 使用的 Node 版本
           cache: 'npm'
 
       - name: Install ffmpeg
@@ -26,28 +28,29 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '11' # 配合 Docker 的 default-jre
 
       - name: Install root dependencies
-        run: npm ci
+        run: npm install # 使用 install 確保觸發所有 lifecycle scripts
+
+      - name: Install gulp dependencies
+        # Dockerfile 中特別進去 gulp 資料夾跑了 yarn
+        run: npm install
+        working-directory: gulp
 
       - name: Install electron dependencies
-        run: npm ci
+        run: npm install
         working-directory: electron
 
-      # 修正：根據你的 build_variants.js，任務名稱中間必須是 .standalone.
-      - name: Prepare Assets and Build
-        run: npx gulp --cwd gulp package.standalone.win32-x64.prepare.all
-
-      # 修正：這裡對應 package.json 裡的腳本
-      - name: Package Windows x64
+      - name: Build and Package
+        # 直接執行 package 腳本。
+        # 因為 package.json 裡寫了 "gulp --cwd gulp package.standalone.win32-x64"
+        # 這會自動處理所有路徑關聯。
         run: npm run package-win32-x64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: shapez-win32-x64
-          # 這裡的路徑也要對應 variant 名稱
           path: build_output/standalone/
           if-no-files-found: error
-          retention-days: 7
