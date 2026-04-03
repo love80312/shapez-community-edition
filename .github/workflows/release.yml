@@ -13,12 +13,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 確保 .git 存在，因為 Dockerfile 有 COPY .git
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '16' # 配合 Dockerfile 使用的 Node 版本
+          # 修正點：改用 Node 22 以支援內建 fetch 並符合 ESLint 等插件要求
+          node-version: '22'
           cache: 'npm'
 
       - name: Install ffmpeg
@@ -28,24 +29,19 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11' # 配合 Docker 的 default-jre
+          # 建議用 Java 17 或 21，通常對新版 TexturePacker 支援度更好
+          java-version: '21'
 
       - name: Install root dependencies
-        run: npm install # 使用 install 確保觸發所有 lifecycle scripts
-
-      - name: Install gulp dependencies
-        # Dockerfile 中特別進去 gulp 資料夾跑了 yarn
-        run: npm install
-        working-directory: gulp
+        # 使用 --force 是為了防止某些舊依賴在 Node 22 下產生衝突
+        run: npm install --force
 
       - name: Install electron dependencies
-        run: npm install
+        run: npm install --force
         working-directory: electron
 
       - name: Build and Package
-        # 直接執行 package 腳本。
-        # 因為 package.json 裡寫了 "gulp --cwd gulp package.standalone.win32-x64"
-        # 這會自動處理所有路徑關聯。
+        # 直接執行封裝指令
         run: npm run package-win32-x64
 
       - name: Upload artifact
@@ -54,3 +50,4 @@ jobs:
           name: shapez-win32-x64
           path: build_output/standalone/
           if-no-files-found: error
+          retention-days: 7
