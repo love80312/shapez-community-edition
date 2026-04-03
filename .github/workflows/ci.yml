@@ -1,22 +1,45 @@
-name: CI
+name: Release
 
 on:
-    push:
-        branches:
-            - master
-            - ModdedGamers-GH-Actions
-    pull_request:
-        branches:
-            - master
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-    yaml-lint:
-        name: yaml-lint
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v2
-            - name: YAML Lint
-              uses: ibiqlik/action-yamllint@v1.0.0
-              with:
-                  file_or_dir: translations/*.yaml
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install ffmpeg
+        run: choco install ffmpeg -y
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install electron dependencies
+        run: npm ci
+        working-directory: electron
+
+      - name: Package Windows x64
+        run: npm run package-win32-x64
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build_output/standalone/*
+          generate_release_notes: true
