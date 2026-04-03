@@ -20,39 +20,34 @@ jobs:
           cache: 'npm'
 
       - name: Install ffmpeg
-        # 遊戲音訊轉碼必要工具
         run: choco install ffmpeg -y
 
       - name: Setup Java
-        # Texture Packer (圖片打包) 必要工具
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
       - name: Install root dependencies
-        # 安裝根目錄依賴，並觸發 gulp prepare
         run: npm ci
 
       - name: Install electron dependencies
-        # README 要求：Electron 目錄也需安裝依賴
         run: npm ci
         working-directory: electron
 
-      - name: Build Game Assets
-        # 關鍵：先編譯遊戲資源 (產生 /build 目錄)
-        # 否則 package 任務會抓到空的資源檔
-        run: npx gulp --cwd gulp build.standalone.win32-x64
+      # 修正：根據你的 build_variants.js，任務名稱中間必須是 .standalone.
+      - name: Prepare Assets and Build
+        run: npx gulp --cwd gulp package.standalone.win32-x64.prepare.all
 
+      # 修正：這裡對應 package.json 裡的腳本
       - name: Package Windows x64
-        # 執行封裝：包含 prepare (搬運檔案) 與 packager (產生 exe)
         run: npm run package-win32-x64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: shapez-win32-x64
-          # 根據 gulp 腳本，產出會在 build_output/standalone/ 下
+          # 這裡的路徑也要對應 variant 名稱
           path: build_output/standalone/
           if-no-files-found: error
           retention-days: 7
